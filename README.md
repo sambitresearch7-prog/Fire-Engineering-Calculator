@@ -4,7 +4,7 @@ A fully interactive web-based fire safety engineering calculator. Converted from
 
 ## Live Demo
 
-👉 **[Open Calculator](https://your-username.github.io/fire-calculator/)**
+👉 **[Open Calculator](https://your-username.github.io/fire-calculator/](https://sambitresearch7-prog.github.io/Fire-Engineering-Calculator/)**
 
 ## Modules Included
 
