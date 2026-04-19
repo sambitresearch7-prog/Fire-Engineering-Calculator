@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire Engineering Calculator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="header-title">
+      <span class="flame-icon">🔥</span>
+      <div>
+        <h1>Fire Engineering Calculator</h1>
+        <p class="header-sub">Fire Safety Engineering Tools · SFPE · PD 7974-1:2019 · ISO 16733-1</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav id="tab-nav">
+  <button class="tab-btn active" data-tab="window-radiation">Window Radiation</button>
+  <button class="tab-btn" data-tab="sprinkler-activation">Sprinkler Activation</button>
+  <button class="tab-btn" data-tab="detector-activation">Detector Activation</button>
+  <button class="tab-btn" data-tab="fire-severity">Fire Severity</button>
+  <button class="tab-btn" data-tab="occupant-movement">Occupant Movement</button>
+  <button class="tab-btn" data-tab="burnout">Compartment Burnout</button>
+  <button class="tab-btn" data-tab="fds-mesh">FDS Mesh Size</button>
+  <button class="tab-btn" data-tab="smoke-layer">Smoke Layer Height</button>
+</nav>
+
+<main id="main-content">
+
+  <!-- ============================================================ -->
+  <!-- TAB 1: WINDOW RADIATION                                       -->
+  <!-- ============================================================ -->
+  <section id="window-radiation" class="tab-panel active">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Heat Radiation from Window to Point</h2>
+        <p class="desc">Calculate incident heat flux from a fire compartment window using the solid flame method (ISO 16733-1, SFPE Handbook)</p>
+
+        <div class="input-group">
+          <h3>Window Dimensions</h3>
+          <div class="field-row">
+            <label>Window Width (a)</label>
+            <input type="number" id="wr-a" value="3.0" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Window Height (b)</label>
+            <input type="number" id="wr-b" value="2.0" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Perpendicular Distance (d)</label>
+            <input type="number" id="wr-d" value="5.0" step="0.1">
+            <span class="unit">m</span>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <h3>Thermal Properties</h3>
+          <div class="field-row">
+            <label>Flame Temperature (Tf)</label>
+            <input type="number" id="wr-tf" value="1273" step="10">
+            <span class="unit">K</span>
+          </div>
+          <div class="hint">e.g. 1073–1473 K (800–1200°C)</div>
+          <div class="field-row">
+            <label>Ambient Temperature (T∞)</label>
+            <input type="number" id="wr-tamb" value="293" step="1">
+            <span class="unit">K</span>
+          </div>
+          <div class="hint">typically 293 K (20°C)</div>
+          <div class="field-row">
+            <label>Flame Emissivity (εf)</label>
+            <input type="number" id="wr-eps" value="1.0" step="0.05" min="0" max="1">
+            <span class="unit">—</span>
+          </div>
+          <div class="hint">0.3–1.0, typically 1.0</div>
+          <div class="field-row readonly-row">
+            <label>Stefan-Boltzmann (σ)</label>
+            <span class="readonly-val">5.67 × 10⁻¹¹</span>
+            <span class="unit">kW/m²K⁴</span>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <h3>Heat Attenuation Screen <span class="optional">(Optional)</span></h3>
+          <div class="field-row checkbox-row">
+            <label><input type="checkbox" id="wr-use-screen"> Use attenuation screen</label>
+          </div>
+          <div class="field-row" id="wr-screen-row" style="display:none">
+            <label>Screen Effectiveness</label>
+            <input type="number" id="wr-screen-eff" value="50" step="5" min="0" max="100">
+            <span class="unit">%</span>
+          </div>
+        </div>
+
+        <button class="calc-btn" onclick="calcWindowRadiation()">Calculate Heat Flux</button>
+      </div>
+
+      <div class="col-right">
+        <div class="results-box" id="wr-results" style="display:none">
+          <h3>Results</h3>
+          <div class="result-row">
+            <span>View Factor (F)</span>
+            <span class="result-val" id="wr-F">—</span>
+          </div>
+          <div class="result-row">
+            <span>Window Area</span>
+            <span class="result-val" id="wr-area">—</span>
+          </div>
+          <div class="result-highlight">
+            <span>Incident Heat Flux</span>
+            <span class="result-big blue" id="wr-flux">— kW/m²</span>
+          </div>
+          <div id="wr-screen-result" style="display:none">
+            <div class="result-highlight">
+              <span>Attenuated Flux (with screen)</span>
+              <span class="result-big green" id="wr-flux-att">— kW/m²</span>
+            </div>
+            <div class="result-row">
+              <span>Screen effectiveness / Reduction</span>
+              <span class="result-val" id="wr-att-detail">—</span>
+            </div>
+          </div>
+          <div class="safety-banner" id="wr-safety"></div>
+        </div>
+
+        <div class="diagram-box">
+          <h3>Schematic Diagram — Plan &amp; Elevation</h3>
+          <canvas id="wr-canvas" width="500" height="340" style="width:100%;height:auto;display:block;"></canvas>
+        </div>
+
+        <div class="formula-box">
+          <h3>Formula — Solid Flame Method</h3>
+          <p class="formula">q'' = ε<sub>f</sub> · σ · F · (T<sub>f</sub>⁴ − T<sub>∞</sub>⁴)</p>
+          <p class="formula">F = (2/π) · [X/√(1+X²) · tan⁻¹(Y/√(1+X²)) + Y/√(1+Y²) · tan⁻¹(X/√(1+Y²))]</p>
+          <p class="formula-small">where X = a/(2d), Y = b/(2d)</p>
+        </div>
+
+        <div class="reference-box">
+          <h4>Safety Thresholds</h4>
+          <table class="ref-table">
+            <tr><td>≥ 12.5 kW/m²</td><td class="red">Spontaneous ignition risk</td></tr>
+            <tr><td>≥ 4.0 kW/m²</td><td class="orange">Piloted ignition possible</td></tr>
+            <tr><td>≥ 1.5 kW/m²</td><td class="orange">Above safe separation threshold</td></tr>
+            <tr><td>&lt; 1.5 kW/m²</td><td class="green">Within safe criteria</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 2: SPRINKLER ACTIVATION                                   -->
+  <!-- ============================================================ -->
+  <section id="sprinkler-activation" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Sprinkler Activation Time Calculator</h2>
+        <p class="desc">Calculate sprinkler activation time using Alpert's correlation (SFPE Handbook)</p>
+        
+        <div class="input-group">
+          <h3>Fire Characteristics</h3>
+          <div class="field-row">
+            <label>Growth Time (tg)</label>
+            <input type="number" id="sp-tg" value="150" step="10">
+            <span class="unit">s</span>
+          </div>
+          <div class="hint">Slow: 600s | Medium: 300s | Fast: 150s | Ultra-fast: 75s</div>
+          <div class="field-row">
+            <label>Convective Fraction (χc)</label>
+            <input type="number" id="sp-chi" value="0.7" step="0.05" min="0" max="1">
+            <span class="unit">—</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <h3>Geometry</h3>
+          <div class="field-row">
+            <label>Ceiling Height (Hc)</label>
+            <input type="number" id="sp-hc" value="2.75" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Fuel Height (Hf)</label>
+            <input type="number" id="sp-hf" value="0.5" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Sprinkler Spacing (X × Y)</label>
+            <input type="number" id="sp-sx" value="3.0" step="0.1" style="width:70px">
+            <span>×</span>
+            <input type="number" id="sp-sy" value="4.0" step="0.1" style="width:70px">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row checkbox-row">
+            <label><input type="checkbox" id="sp-2ndrow"> Use 2nd row sprinkler</label>
+          </div>
+        </div>
+        <div class="input-group">
+          <h3>Sprinkler Properties</h3>
+          <div class="field-row">
+            <label>Room Temperature (To)</label>
+            <input type="number" id="sp-to" value="20" step="1">
+            <span class="unit">°C</span>
+          </div>
+          <div class="field-row">
+            <label>Activation Temperature (Te)</label>
+            <input type="number" id="sp-te" value="68" step="1">
+            <span class="unit">°C</span>
+          </div>
+          <div class="field-row">
+            <label>Response Time Index (RTI)</label>
+            <input type="number" id="sp-rti" value="50" step="5">
+            <span class="unit">(m·s)⁰·⁵</span>
+          </div>
+          <div class="hint">Quick: 50 | Standard: 200</div>
+          <div class="field-row readonly-row">
+            <label>Conductance (C)</label>
+            <span class="readonly-val">0.8</span>
+            <span class="unit">(m·s)⁰·⁵</span>
+          </div>
+        </div>
+        <button class="calc-btn" onclick="calcSprinkler()">Calculate Activation Time</button>
+      </div>
+
+      <div class="col-right">
+        <div class="results-box" id="sp-results" style="display:none">
+          <h3>Results</h3>
+          <div class="result-highlight">
+            <span>Activation Time</span>
+            <span class="result-big blue" id="sp-time">— s</span>
+          </div>
+          <div class="result-highlight">
+            <span>Fire Size at Activation</span>
+            <span class="result-big red" id="sp-hrr">— kW</span>
+          </div>
+          <div class="result-row"><span>Radial Distance (R)</span><span class="result-val" id="sp-R">—</span></div>
+        </div>
+
+        <div class="chart-title">Alpert Ceiling Jet Correlations</div>
+        <div class="chart-container"><canvas id="sp-chart-temp"></canvas></div>
+        <div class="chart-container"><canvas id="sp-chart-hrr"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 3: DETECTOR ACTIVATION                                    -->
+  <!-- ============================================================ -->
+  <section id="detector-activation" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Detector Activation Time Calculator</h2>
+        <p class="desc">Calculate detector activation time using Alpert's correlation (SFPE Handbook)</p>
+        
+        <div class="input-group">
+          <h3>Fire Characteristics</h3>
+          <div class="field-row">
+            <label>Growth Time (tg)</label>
+            <input type="number" id="det-tg" value="150" step="10">
+            <span class="unit">s</span>
+          </div>
+          <div class="hint">Slow: 600s | Medium: 300s | Fast: 150s | Ultra-fast: 75s</div>
+          <div class="field-row">
+            <label>Convective Fraction (χc)</label>
+            <input type="number" id="det-chi" value="0.7" step="0.05" min="0" max="1">
+            <span class="unit">—</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <h3>Geometry</h3>
+          <div class="field-row">
+            <label>Ceiling Height (Hc)</label>
+            <input type="number" id="det-hc" value="3.0" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Fuel Height (Hf)</label>
+            <input type="number" id="det-hf" value="0.5" step="0.1">
+            <span class="unit">m</span>
+          </div>
+          <div class="field-row">
+            <label>Detector Spacing (X × Y)</label>
+            <input type="number" id="det-sx" value="5.0" step="0.1" style="width:70px">
+            <span>×</span>
+            <input type="number" id="det-sy" value="5.0" step="0.1" style="width:70px">
+            <span class="unit">m</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <h3>Detector Properties</h3>
+          <div class="field-row">
+            <label>Room Temperature (To)</label>
+            <input type="number" id="det-to" value="20" step="1">
+            <span class="unit">°C</span>
+          </div>
+          <div class="field-row">
+            <label>Activation Temperature (Te)</label>
+            <input type="number" id="det-te" value="33" step="1">
+            <span class="unit">°C</span>
+          </div>
+          <div class="hint">Smoke detector ≈ 33°C above ambient</div>
+          <div class="field-row">
+            <label>Response Time Index (RTI)</label>
+            <input type="number" id="det-rti" value="10" step="5">
+            <span class="unit">(m·s)⁰·⁵</span>
+          </div>
+          <div class="field-row">
+            <label>Conductance (C)</label>
+            <input type="number" id="det-c" value="0.8" step="0.1">
+            <span class="unit">(m·s)⁰·⁵</span>
+          </div>
+        </div>
+        <button class="calc-btn" onclick="calcDetector()">Calculate Activation Time</button>
+      </div>
+
+      <div class="col-right">
+        <div class="results-box" id="det-results" style="display:none">
+          <h3>Results</h3>
+          <div class="result-highlight">
+            <span>Activation Time</span>
+            <span class="result-big blue" id="det-time">— s</span>
+          </div>
+          <div class="result-highlight">
+            <span>Fire Size at Activation</span>
+            <span class="result-big red" id="det-hrr">— kW</span>
+          </div>
+          <div class="result-row"><span>Radial Distance (R)</span><span class="result-val" id="det-R">—</span></div>
+        </div>
+
+        <div class="chart-title">Alpert Ceiling Jet Correlations</div>
+        <div class="chart-container"><canvas id="det-chart-temp"></canvas></div>
+        <div class="chart-container"><canvas id="det-chart-hrr"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 4: FIRE SEVERITY                                          -->
+  <!-- ============================================================ -->
+  <section id="fire-severity" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Fire Severity Calculator</h2>
+        <p class="desc">Time equivalence using Law, CIB, and Eurocode methods (EN 1991-1-2)</p>
+        
+        <div class="input-group">
+          <h3>Compartment Geometry</h3>
+          <div class="field-row"><label>Floor Area (Af)</label><input type="number" id="fs-Af" value="50" step="1"><span class="unit">m²</span></div>
+          <div class="field-row"><label>Total Surface Area (At)</label><input type="number" id="fs-At" value="120" step="1"><span class="unit">m²</span></div>
+          <div class="field-row"><label>Compartment Height (H)</label><input type="number" id="fs-H" value="3.0" step="0.1"><span class="unit">m</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Openings</h3>
+          <div class="field-row"><label>Vertical Opening Area (Av)</label><input type="number" id="fs-Av" value="6.0" step="0.5"><span class="unit">m²</span></div>
+          <div class="field-row"><label>Equiv. Vert. Opening Height (heq)</label><input type="number" id="fs-heq" value="1.5" step="0.1"><span class="unit">m</span></div>
+          <div class="field-row"><label>Horizontal Opening Area (Ah)</label><input type="number" id="fs-Ah" value="0.0" step="0.5"><span class="unit">m²</span></div>
+          <div class="field-row"><label>Glass Breakage (Gb)</label><input type="number" id="fs-Gb" value="50" step="5" min="0" max="100"><span class="unit">%</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Fire Load &amp; Lining</h3>
+          <div class="field-row"><label>Fire Load Density (Qf,d)</label><input type="number" id="fs-Qfd" value="600" step="10"><span class="unit">MJ/m²</span></div>
+          <div class="field-row"><label>Heat of Combustion (Hc)</label><input type="number" id="fs-Hc" value="45" step="1"><span class="unit">MJ/kg</span></div>
+          <div class="field-row"><label>Thermal Inertia (b)</label><input type="number" id="fs-b" value="32" step="1"><span class="unit">Wh⁰·⁵/m²·K</span></div>
+        </div>
+        <button class="calc-btn" onclick="calcFireSeverity()">Calculate</button>
+      </div>
+
+      <div class="col-right">
+        <h2>Calculation Results</h2>
+        <div class="method-box">
+          <h3>Law Formula</h3>
+          <div class="result-row"><span>K</span><span class="result-val green" id="fs-law-K">—</span></div>
+          <div class="result-row"><span>Lf,k</span><span class="result-val orange" id="fs-law-Lfk">— kg</span></div>
+          <div class="result-highlight"><span>Te,d</span><span class="result-big blue" id="fs-law-Ted">— min</span></div>
+        </div>
+        <div class="method-box">
+          <h3>CIB Formula</h3>
+          <div class="result-row"><span>c</span><span class="result-val green" id="fs-cib-c">—</span></div>
+          <div class="result-row"><span>w</span><span class="result-val orange" id="fs-cib-w">—</span></div>
+          <div class="result-highlight"><span>Te,d</span><span class="result-big blue" id="fs-cib-Ted">— min</span></div>
+        </div>
+        <div class="method-box">
+          <h3>Eurocode Formula</h3>
+          <div class="result-row"><span>kc</span><span class="result-val green" id="fs-ec-Kc">—</span></div>
+          <div class="result-row"><span>Kb</span><span class="result-val green" id="fs-ec-Kb">—</span></div>
+          <div class="result-row"><span>bv</span><span class="result-val orange" id="fs-ec-bv">—</span></div>
+          <div class="result-row"><span>wf</span><span class="result-val orange" id="fs-ec-wf">—</span></div>
+          <div class="result-highlight"><span>Te,d</span><span class="result-big blue" id="fs-ec-Ted">— min</span></div>
+        </div>
+        <p class="note">Note: Results in minutes. Higher thermal inertia improves fire resistance.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 5: OCCUPANT MOVEMENT                                      -->
+  <!-- ============================================================ -->
+  <section id="occupant-movement" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Occupant Movement Time Calculator</h2>
+        <p class="desc">Evacuation travel &amp; queueing time (Buchanan 2008)</p>
+        
+        <div class="input-group">
+          <h3>Room Geometry</h3>
+          <div class="field-row"><label>Length (Lr)</label><input type="number" id="om-Lr" value="20" step="1" oninput="updateOccupantDiagram()"><span class="unit">m</span></div>
+          <div class="field-row"><label>Width (Wr)</label><input type="number" id="om-Wr" value="10" step="1" oninput="updateOccupantDiagram()"><span class="unit">m</span></div>
+          <div class="field-row"><label>Travel Distance (Lt)</label><input type="number" id="om-Lt" value="15" step="1"><span class="unit">m</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Exit Configuration</h3>
+          <div class="field-row"><label>No. of Stairs (Ns)</label><input type="number" id="om-Ns" value="0" step="1" oninput="updateOccupantDiagram()"><span class="unit">BL=0.15m</span></div>
+          <div class="field-row"><label>No. of Doors (Nd)</label><input type="number" id="om-Nd" value="1" step="1" oninput="updateOccupantDiagram()"><span class="unit">BL=0.05m</span></div>
+          <div class="field-row"><label>No. of Rails (Nr)</label><input type="number" id="om-Nr" value="0" step="1" oninput="updateOccupantDiagram()"><span class="unit">BL=0.09m</span></div>
+          <div class="field-row"><label>Total Exit Width (W)</label><input type="number" id="om-W" value="1.8" step="0.1" oninput="updateOccupantDiagram()"><span class="unit">m</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Occupant Parameters</h3>
+          <div class="field-row"><label>Number of Occupants (No)</label><input type="number" id="om-No" value="50" step="5"><span class="unit">persons</span></div>
+          <div class="field-row"><label>Travel Speed (S)</label><input type="number" id="om-S" value="0.8" step="0.1"><span class="unit">m/s</span></div>
+        </div>
+        <button class="calc-btn" onclick="calcOccupantMovement()">Calculate Movement Time</button>
+      </div>
+
+      <div class="col-right">
+        <div class="diagram-box">
+          <h3>Room &amp; Exit Diagram</h3>
+          <canvas id="om-diagram" width="440" height="260"></canvas>
+        </div>
+
+        <div class="results-box" id="om-results" style="display:none">
+          <h3>Intermediate Values</h3>
+          <div class="result-row"><span>Density (Do)</span><span class="result-val" id="om-Do">—</span></div>
+          <div class="result-row"><span>Effective Width (We)</span><span class="result-val" id="om-We">—</span></div>
+          <div class="result-row"><span>Specific Flow (Fs)</span><span class="result-val" id="om-Fs">—</span></div>
+          <div class="result-row"><span>Actual Flow (Fa)</span><span class="result-val" id="om-Fa">—</span></div>
+          <h3 style="margin-top:12px">Time Results</h3>
+          <div class="result-row"><span>Travel Time</span><span class="result-val" id="om-Ttr">—</span></div>
+          <div class="result-row"><span>Queueing Time</span><span class="result-val" id="om-TQ">—</span></div>
+          <div class="result-highlight">
+            <span>Total Movement Time</span>
+            <span class="result-big blue" id="om-Tm">— s</span>
+          </div>
+        </div>
+
+        <div class="formula-box">
+          <h3>Key Formulae</h3>
+          <p class="formula-small">Do = No / (Lr × Wr)</p>
+          <p class="formula-small">We = W − boundary layer corrections</p>
+          <p class="formula-small">Tm = Travel Time + Queueing Time</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 6: COMPARTMENT BURNOUT                                    -->
+  <!-- ============================================================ -->
+  <section id="burnout" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Compartment Fire Burnout Calculator</h2>
+        <p class="desc">Ventilation-controlled burn duration (Buchanan 2008)</p>
+        
+        <div class="input-group">
+          <h3>Fire Cell Geometry</h3>
+          <div class="field-row"><label>Length (Lf)</label><input type="number" id="bo-Lf" value="5.0" step="0.1" oninput="updateBurnoutDiagram()"><span class="unit">m</span></div>
+          <div class="field-row"><label>Width (Wf)</label><input type="number" id="bo-Wf" value="4.0" step="0.1" oninput="updateBurnoutDiagram()"><span class="unit">m</span></div>
+          <div class="field-row"><label>Height (H)</label><input type="number" id="bo-H" value="3.0" step="0.1" oninput="updateBurnoutDiagram()"><span class="unit">m</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Ventilation Opening</h3>
+          <div class="field-row"><label>Window height (h)</label><input type="number" id="bo-h" value="1.8" step="0.1" oninput="updateBurnoutDiagram()"><span class="unit">m</span></div>
+          <div class="field-row"><label>Window width (w)</label><input type="number" id="bo-w" value="1.2" step="0.1" oninput="updateBurnoutDiagram()"><span class="unit">m</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Fuel Properties</h3>
+          <div class="field-row"><label>Fuel load density (ef)</label><input type="number" id="bo-ef" value="400" step="10"><span class="unit">MJ/m²</span></div>
+          <div class="field-row"><label>Heat of combustion (Hc)</label><input type="number" id="bo-Hc" value="16" step="1"><span class="unit">MJ/kg</span></div>
+        </div>
+        <button class="calc-btn" onclick="calcBurnout()">Calculate Burnout</button>
+      </div>
+
+      <div class="col-right">
+        <div class="diagram-box">
+          <h3>Fire Cell 3D View</h3>
+          <canvas id="bo-diagram" width="460" height="340" style="width:100%;height:auto;display:block;"></canvas>
+        </div>
+
+        <div class="results-box" id="bo-results" style="display:none">
+          <h3>Outputs</h3>
+          <div class="result-row"><span>Floor area (Af)</span><span class="result-val" id="bo-Af">—</span></div>
+          <div class="result-row"><span>Window area (Av)</span><span class="result-val" id="bo-Av">—</span></div>
+          <div class="result-row"><span>Total surface (At)</span><span class="result-val" id="bo-At">—</span></div>
+          <div class="result-row"><span>Burning rate (ṁb)</span><span class="result-val" id="bo-mb">—</span></div>
+          <div class="result-highlight"><span>Burn duration</span><span class="result-big red" id="bo-tb-m">— min</span></div>
+        </div>
+
+        <div class="formula-box">
+          <h3>Formulae</h3>
+          <p class="formula-small">tb = m / ṁb   (ventilation controlled)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 7: FDS MESH SIZE                                          -->
+  <!-- ============================================================ -->
+  <section id="fds-mesh" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>FDS Mesh Size Calculator</h2>
+        <p class="desc">Optimal mesh cell size based on characteristic fire diameter D* (NIST FDS Guide)</p>
+        
+        <div class="input-group">
+          <h3>Fire Input</h3>
+          <div class="field-row"><label>Heat Release Rate (Q)</label><input type="number" id="fds-Q" value="1000" step="100"><span class="unit">kW</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Ambient Conditions</h3>
+          <div class="field-row"><label>Air Density (ρ∞)</label><input type="number" id="fds-rho" value="1.204" step="0.01"><span class="unit">kg/m³</span></div>
+          <div class="field-row"><label>Specific Heat (Cp)</label><input type="number" id="fds-cp" value="1.005" step="0.01"><span class="unit">kJ/kg·K</span></div>
+          <div class="field-row"><label>Gravity (g)</label><input type="number" id="fds-g" value="9.81" step="0.01"><span class="unit">m/s²</span></div>
+          <div class="field-row"><label>Ambient Temp (T∞)</label><input type="number" id="fds-T" value="293" step="1"><span class="unit">K</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Target Cell Size</h3>
+          <div class="field-row"><label>Target dx</label><input type="number" id="fds-dx" value="0.1" step="0.01"><span class="unit">m</span></div>
+        </div>
+        <button class="calc-btn" onclick="calcFDSMesh()">Calculate Mesh Size</button>
+      </div>
+
+      <div class="col-right">
+        <div class="results-box" id="fds-results" style="display:none">
+          <h3>Results</h3>
+          <div class="result-highlight"><span>D* (Characteristic Diameter)</span><span class="result-big blue" id="fds-dstar">— m</span></div>
+          <div class="result-highlight"><span>D*/dx Ratio</span><span class="result-big" id="fds-ratio">—</span></div>
+          <div class="result-row"><span>Coarse (4)</span><span class="result-val" id="fds-coarse">—</span></div>
+          <div class="result-row"><span>Medium (10)</span><span class="result-val" id="fds-medium">—</span></div>
+          <div class="result-row"><span>Fine (16)</span><span class="result-val" id="fds-fine">—</span></div>
+        </div>
+
+        <div class="chart-title">Recommended Cell Size vs HRR</div>
+        <div class="chart-container"><canvas id="fds-chart"></canvas></div>
+
+        <div class="formula-box">
+          <h3>Formula</h3>
+          <p class="formula">D* = [Q / (ρ∞·Cp·T∞·√g)]<sup>2/5</sup></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TAB 8: SMOKE LAYER HEIGHT                                     -->
+  <!-- ============================================================ -->
+  <section id="smoke-layer" class="tab-panel">
+    <div class="two-col">
+      <div class="col-left">
+        <h2>Smoke Layer Height Calculator</h2>
+        <p class="desc">Smoke descent time to critical height (Drysdale 2011)</p>
+        
+        <div class="input-group">
+          <h3>Compartment Geometry</h3>
+          <div class="field-row"><label>Floor Area (A)</label><input type="number" id="sl-A" value="100" step="5"><span class="unit">m²</span></div>
+          <div class="field-row"><label>DTS Ceiling (Hd)</label><input type="number" id="sl-Hd" value="3.0" step="0.1"><span class="unit">m</span></div>
+          <div class="field-row"><label>Performance Ceiling (Hp)</label><input type="number" id="sl-Hp" value="4.0" step="0.1"><span class="unit">m</span></div>
+          <div class="field-row"><label>Target Height (y)</label><input type="number" id="sl-y" value="2.0" step="0.1"><span class="unit">m</span></div>
+          <div class="field-row"><label>Gravity (g)</label><input type="number" id="sl-g" value="9.81" step="0.01"><span class="unit">m/s²</span></div>
+        </div>
+        <div class="input-group">
+          <h3>Fire Dimensions</h3>
+          <div class="field-row">
+            <label>Fire Size (L × W)</label>
+            <input type="number" id="sl-L" value="2.0" step="0.1" style="width:70px">
+            <span>×</span>
+            <input type="number" id="sl-W" value="2.0" step="0.1" style="width:70px">
+            <span class="unit">m</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <h3>Building &amp; Sprinkler Status</h3>
+          <div class="field-row">
+            <label>Classification</label>
+            <select id="sl-class">
+              <option>Class 2, 3 or 5</option>
+              <option>Class 6</option>
+              <option>Class 7 or 8</option>
+              <option>Class 9</option>
+              <option>Class 9b / Exhibition Hall</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Sprinkler</label>
+            <select id="sl-sprinkler">
+              <option>Unsprinklered</option>
+              <option>Sprinklered</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label>Fire Size Source</label>
+            <label><input type="radio" name="sl-mode" value="table" checked onchange="toggleSlMode()"> Table</label>
+            <label><input type="radio" name="sl-mode" value="manual" onchange="toggleSlMode()"> Manual</label>
+          </div>
+          <div class="field-row" id="sl-table-row">
+            <label>Design Fire Size</label>
+            <span class="result-val orange" id="sl-table-val">5.0 MW</span>
+          </div>
+          <div class="field-row" id="sl-manual-row" style="display:none">
+            <label>Manual Fire Size</label>
+            <input type="number" id="sl-manual-Q" value="5.0" step="0.5"><span class="unit">MW</span>
+          </div>
+        </div>
+        <button class="calc-btn" onclick="calcSmokeLayer()">Calculate Smoke Descent Time</button>
+      </div>
+
+      <div class="col-right">
+        <div class="results-box" id="sl-results" style="display:none">
+          <h3>Results</h3>
+          <div class="result-row"><span>Fire Perimeter (Pf)</span><span class="result-val orange" id="sl-Pf">—</span></div>
+          <div class="result-highlight"><span>DTS Time (Td)</span><span class="result-big blue" id="sl-Td">— s</span></div>
+          <div class="result-highlight"><span>Performance Time (Tp)</span><span class="result-big green" id="sl-Tp">— s</span></div>
+          <div class="result-highlight"><span>Time Gain (ΔT)</span><span class="result-big" id="sl-dT">— s</span></div>
+        </div>
+
+        <div class="chart-title">Smoke Layer Descent</div>
+        <div class="chart-container"><canvas id="sl-chart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>References: SFPE Handbook (5th Ed.), PD 7974-1:2019, ISO 16733-1, EN 1991-1-2, Buchanan (2008), Drysdale (2011)</p>
+  <p>© 2026 Fire Engineering Calculator — Developed by Sambit Kumar Biswal</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="calc.js"></script>
+</body>
+</html>
