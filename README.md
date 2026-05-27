@@ -1,61 +1,106 @@
-# 🔥 Fire Engineering Calculator
+# Fire Engineering Calculator — Server & Deployment Guide
 
-A fully interactive web-based fire safety engineering calculator. Converted from a Python/tkinter desktop application.
+## Files
 
-## Live Demo
+| File | Purpose |
+|------|---------|
+| `index.html` | Main UI (all 9 modules) |
+| `style.css` | Stylesheet |
+| `calc.js` | All calculation logic + fire station data embedded |
+| `server.py` | Optional Python backend (for persistent DB updates) |
+| `Australia_Urban_Fire_Stations_All_States.xlsx` | Source Excel (optional, for re-uploads) |
 
-👉 **[Open Calculator](https://sambitresearch7-prog.github.io/Fire-Engineering-Calculator/)**
+---
 
-## Modules Included
+## Option A — GitHub Pages (static, no server)
 
-| Module | Description | Reference |
-|--------|-------------|-----------|
-| **Window Radiation to Point** | Incident heat flux from fire compartment window (solid flame method) | ISO 16733-1, SFPE Handbook |
-| **Sprinkler Activation (Alpert)** | Sprinkler activation time using Alpert's ceiling jet correlation | SFPE Handbook |
-| **Detector Activation (Alpert)** | Heat/smoke detector activation time | SFPE Handbook |
-| **Fire Severity (Time Equiv.)** | Time equivalence using Law, CIB, and Eurocode methods | EN 1991-1-2 |
-| **Occupant Movement Time** | Evacuation travel & queueing time | Buchanan (2008), §11.7 |
-| **Compartment Burnout** | Ventilation-controlled burn duration | Buchanan (2008), §6.3 |
-| **FDS Mesh Size (D*)** | Optimal FDS mesh cell size via characteristic fire diameter | NIST FDS User's Guide |
-| **Smoke Layer Height** | Smoke descent time for DTS vs Performance solutions | Drysdale (2011), §11.2.2 |
+1. Push `index.html`, `style.css`, `calc.js` to a GitHub repo.
+2. Enable **Settings → Pages → main / root**.
+3. The fire station database is baked into `calc.js` — 605 stations, always available.
+4. **To update the database without a server:** upload the new Excel via the in-browser *Update Station Database* panel in the Nearest Fire Stations tab. SheetJS parses it client-side and updates the session (reloading the page resets to the baked-in 605 stations).
 
-## How to Host on GitHub Pages
+---
 
-1. **Create a new repository** on GitHub (e.g., `fire-calculator`)
-2. **Upload the three files** to the repository:
-   - `index.html`
-   - `style.css`
-   - `calc.js`
-3. Go to **Settings → Pages**
-4. Under **Source**, select `main` branch and `/ (root)` folder
-5. Click **Save** — your site will be live at `https://your-username.github.io/fire-calculator/`
+## Option B — Python Server (persistent DB updates)
 
-## File Structure
+The backend server (`server.py`) serves the static files AND provides a REST endpoint that patches `calc.js` on disk so updates persist across page reloads.
 
-```
-fire-calculator/
-├── index.html      # Main HTML with all UI tabs
-├── style.css       # Stylesheet
-├── calc.js         # All calculation logic (JavaScript)
-└── README.md       # This file
+### Installation
+
+```bash
+pip install flask openpyxl pandas
 ```
 
-## Technologies Used
+### Run
 
-- Pure **HTML5 / CSS3 / JavaScript** — no build tools required
-- **Chart.js** (CDN) — for interactive plots
-- **IBM Plex Sans & Mono** (Google Fonts) — typography
+```bash
+python server.py
+# → http://localhost:5000
+```
 
-## References
+### How uploading works
 
-- SFPE Handbook of Fire Protection Engineering (5th Ed.)
-- PD 7974-1:2019
-- ISO 16733-1:2015
-- EN 1991-1-2 (Eurocode 1)
-- Buchanan, A.H. (2008). *Fire Engineering Design Guide*, 3rd Ed.
-- Drysdale, D. (2011). *An Introduction to Fire Dynamics*, 3rd Ed., Wiley.
+1. Open the **Nearest Fire Stations** tab.
+2. Under *Update Station Database*, choose a `.xlsx` file and click **Upload & Apply**.
+3. The browser POSTs to `POST /api/upload-stations`.
+4. The server validates the file, parses all state sheets, rewrites the `FS_BUILTIN_STATIONS` array in `calc.js`, and saves a copy as `fire_stations.xlsx`.
+5. Reload the browser — the new stations are now live for all visitors.
 
-## Developer
+### REST API
 
-Sambit Kumar Biswal  
-© 2026 Fire Engineering Calculator
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Serve `index.html` |
+| `POST` | `/api/upload-stations` | Upload new Excel, patch `calc.js` |
+| `GET` | `/api/stations` | Return current station list as JSON |
+
+#### `POST /api/upload-stations`
+
+Request: `multipart/form-data` with field `file` (`.xlsx`).
+
+Response (success):
+```json
+{ "ok": true, "count": 612, "msg": "Successfully loaded 612 stations. calc.js has been updated — reload the browser page." }
+```
+
+Response (error):
+```json
+{ "ok": false, "error": "Sheet 'QLD' is missing columns: LATITUDE" }
+```
+
+---
+
+## Excel Format Requirements
+
+The uploaded file must match this structure:
+
+- **Sheets named:** `NSW`, `VIC`, `QLD`, `SA`, `WA`, `ACT`, `NT`, `TAS` (any subset is fine)
+- **Row 0:** Sheet title (ignored)
+- **Row 1:** Column headers (must include `STATION`, `LATITUDE`, `LONGITUDE`)
+- **Rows 2+:** Station data
+
+| Column | Required | Description |
+|--------|----------|-------------|
+| `STATION` | ✅ | Station name |
+| `LATITUDE` | ✅ | Decimal latitude (negative for Australia) |
+| `LONGITUDE` | ✅ | Decimal longitude |
+| `ADDRESS` | optional | Street address |
+| `LOCALITY` | optional | Suburb / postcode |
+| `STATIONTYPE` | optional | e.g. Urban, Industrial, Airport |
+
+---
+
+## Nearest Fire Stations Module — How It Works
+
+1. **Pre-filter:** All stations within the selected radius (straight-line Haversine distance) are identified. Default 100 km, configurable up to 500 km.
+2. **Road routing:** The closest 15 pre-filtered stations are routed via the **OSRM public API** (OpenStreetMap) to get actual driving distance and estimated travel time.
+3. **Rank & Display:** Stations are ranked by road distance; the top 5 are shown in a table and on an interactive Leaflet map with colour-coded route lines.
+
+### Address input formats
+
+- **Street address:** `123 Main St, Sydney` — geocoded via OpenStreetMap Nominatim
+- **Coordinates:** `(-33.8688, 151.2093)` or `-33.8688, 151.2093`
+
+---
+
+© 2026 Fire Engineering Calculator — Sambit Kumar Biswal
