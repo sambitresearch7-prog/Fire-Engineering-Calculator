@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fire Engineering Calculator</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
 <header>
@@ -28,6 +29,7 @@
   <button class="tab-btn" data-tab="burnout">Compartment Burnout</button>
   <button class="tab-btn" data-tab="fds-mesh">FDS Mesh Size</button>
   <button class="tab-btn" data-tab="smoke-layer">Smoke Layer Height</button>
+  <button class="tab-btn" data-tab="fire-stations">🚒 Nearest Fire Stations</button>
 </nav>
 
 <main id="main-content">
@@ -636,6 +638,97 @@
     </div>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- TAB 9: NEAREST FIRE STATIONS                                  -->
+  <!-- ============================================================ -->
+  <section id="fire-stations" class="tab-panel">
+    <div class="fs-layout">
+
+      <!-- LEFT COLUMN: Inputs & Results -->
+      <div class="fs-left">
+        <h2>Nearest Fire Stations Finder</h2>
+        <p class="desc">Find the five nearest Australian urban fire stations to a site. Distances and travel times are calculated via OpenStreetMap routing.</p>
+
+        <!-- Address / Coordinates Input -->
+        <div class="input-group">
+          <h3>Site Location</h3>
+          <div class="field-row">
+            <label>Address or Coordinates</label>
+            <input type="text" id="fs-location" placeholder="e.g. 123 Main St, Sydney or -33.8688,151.2093" style="width:260px">
+          </div>
+          <p class="hint">Enter a street address <em>or</em> decimal coordinates as (lat, lon).</p>
+          <div class="field-row">
+            <label>Max search radius</label>
+            <select id="fs-radius">
+              <option value="50">50 km</option>
+              <option value="100" selected>100 km</option>
+              <option value="200">200 km</option>
+              <option value="500">500 km (all Australia)</option>
+            </select>
+          </div>
+          <div class="field-row" style="margin-top:6px">
+            <label>Station database</label>
+            <span id="fs-db-status" class="result-val blue">Built-in (605 stations)</span>
+          </div>
+        </div>
+
+        <button class="calc-btn" onclick="findFireStations()">🔍 Find Nearest Fire Stations</button>
+
+        <!-- Results table -->
+        <div id="fs-results-box" class="results-box" style="display:none">
+          <h3>Top 5 Nearest Stations (by road distance)</h3>
+          <div id="fs-results-table"></div>
+          <!-- Station visibility toggles -->
+          <div id="fs-visibility-panel" style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px">
+            <p style="font-size:0.78rem;font-weight:700;color:#1a2744;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px">Show / Hide Routes on Map</p>
+            <div id="fs-visibility-toggles" style="display:flex;flex-direction:column;gap:5px"></div>
+          </div>
+        </div>
+
+        <!-- Error/info message -->
+        <div id="fs-msg" class="safety-banner" style="display:none"></div>
+
+        <!-- Update database section -->
+        <div class="input-group" style="margin-top:18px">
+          <h3>⬆ Update Station Database</h3>
+          <p class="hint" style="margin-bottom:8px">Upload a new Excel file with the same format (sheets: NSW, VIC, QLD, SA, WA, ACT, NT, TAS; columns: STATION, ADDRESS, LOCALITY, STATIONTYPE, LATITUDE, LONGITUDE) to update the station list without changing any code.</p>
+          <div class="field-row" style="flex-wrap:wrap;gap:8px">
+            <input type="file" id="fs-upload-file" accept=".xlsx" style="font-size:0.83rem">
+            <button class="calc-btn" onclick="uploadFireStationDB()" style="width:auto;padding:8px 16px;margin:0">Upload & Apply</button>
+          </div>
+          <div id="fs-upload-status" class="hint" style="margin-top:6px"></div>
+        </div>
+
+        <!-- Reference note -->
+        <div class="reference-box">
+          <h4>Method Notes</h4>
+          <p class="note">
+            <strong>Step 1 – Pre-filter:</strong> All 605 stations within the selected radius (straight-line Haversine) are identified from the built-in database.<br>
+            <strong>Step 2 – Road routing:</strong> The closest 15 pre-filtered stations are routed via the OSRM public API (OpenStreetMap) to obtain driving distance (km) and estimated travel time.<br>
+            <strong>Step 3 – Rank:</strong> Stations are ranked by driving distance and the top 5 are displayed with a route map.
+          </p>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Map -->
+      <div class="fs-right">
+        <div class="diagram-box" style="padding:0;overflow:hidden;border-radius:8px">
+          <div id="fs-map-wrap" class="fs-map-wrap">
+            <div id="fs-map" style="height:560px;width:100%;border-radius:8px;background:#e8eaf0">
+              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:0.9rem;flex-direction:column;gap:8px">
+                <span style="font-size:2rem">🗺️</span>
+                <span>Enter a location and click Find to display the map</span>
+              </div>
+            </div>
+            <div id="fs-map-overlay"></div>
+          </div>
+        </div>
+        <p class="hint" style="text-align:center;margin-top:6px">Map shows route from each fire station to the site. Click a station marker for details.</p>
+      </div>
+
+    </div>
+  </section>
+
 </main>
 
 <footer>
@@ -644,6 +737,7 @@
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="calc.js"></script>
 </body>
 </html>

@@ -395,3 +395,137 @@ header h1 {
   .field-row input[type="number"] { width: 90px; }
   .col-right { max-width: 100%; }
 }
+/* ===== FIRE STATIONS MODULE ===== */
+.fs-layout {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 26px;
+  align-items: start;
+  max-width: 1380px;
+  margin: 0 auto;
+}
+.fs-left { min-width: 0; }
+.fs-right { min-width: 0; }
+
+/* Results table */
+.fs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.fs-table th {
+  background: var(--deep-navy);
+  color: #fff;
+  padding: 7px 9px;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.fs-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid #eef0f5;
+  vertical-align: middle;
+}
+.fs-table tr:hover td { background: #f5f7ff; }
+.fs-table small { color: var(--text-muted); font-size: 0.74rem; }
+
+.fs-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+/* Leaflet popup override to match app font */
+.leaflet-popup-content-wrapper {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.82rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.leaflet-popup-content strong { color: var(--deep-navy); }
+
+@media (max-width: 950px) {
+  .fs-layout {
+    grid-template-columns: 1fr;
+  }
+  .fs-right { order: -1; }
+  #fs-map { height: 320px !important; }
+}
+
+/* ── Leaflet attribution – shrink to minimal ── */
+.leaflet-control-attribution {
+  font-size: 10px !important;
+  background: rgba(255,255,255,0.7) !important;
+  padding: 1px 5px !important;
+  line-height: 1.4 !important;
+}
+/* Hide the default Leaflet logo/brand link */
+.leaflet-control-attribution a[href*="leafletjs"] {
+  display: none !important;
+}
+
+/* ── Keep Leaflet map layers below the sticky tab ribbon (z-index:100) ── */
+#fs-map {
+  /* Establish a new stacking context so internal Leaflet z-indices are scoped */
+  isolation: isolate;
+}
+/* Leaflet's own z-indices are relative inside the container — this ensures the
+   whole map div never floats above the nav when scrolling */
+#fire-stations .diagram-box {
+  position: relative;
+  z-index: 0;
+}
+/* Show a subtle "scroll to zoom" hint overlay */
+#fs-map::after {
+  content: 'Scroll inside map to zoom';
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26,39,68,0.75);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 999;
+  white-space: nowrap;
+}
+#fs-map:hover::after {
+  opacity: 1;
+}
+
+
+
+/* Draggable cursor hint on the site pin */
+.leaflet-draggable { cursor: grab !important; }
+.leaflet-draggable:active { cursor: grabbing !important; }
+
+/* ── Fire station map overlay ─────────────────────────────────────────────── */
+.fs-map-wrap {
+  position: relative;          /* overlay anchor */
+}
+#fs-map-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(26,39,68,0.58);
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+}
